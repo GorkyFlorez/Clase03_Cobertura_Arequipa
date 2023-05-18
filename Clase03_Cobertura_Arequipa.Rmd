@@ -1,0 +1,368 @@
+---
+title: "Mapa de Cobertura vegetal de Arequipa"
+author: "Ing. Gorky Florez Castillo"
+date: "18/05/2023"
+output:
+  revealjs::revealjs_presentation:
+    theme: solarized
+    highlight: pygments
+    center: true
+    # "default", "simple", "sky", "beige", "serif", "solarized", "blood", "moon", "night", "black", "league", and "white"
+    self_contained: false
+    reveal_plugins: ["notes", "search","chalkboard","menu","zoom"]
+    reveal_options:
+      chalkboard:
+        toggleNotesButton: false
+---
+# <img src="PNG/Logo R2.png" alt="Mi imagen" height="700" width="1600">
+
+# Instalar y habilitar librerias
+
+- library(sf)
+- library(ggplot2)
+- library(ggspatial)
+- library(raster)
+- library(elevatr)
+- library(ggnewscale) 
+- library(tidyverse) 
+
+---
+```{r }
+library(sf)             # Cargar archivos SHP, geojson
+library(ggplot2)        # Paquete para graficar
+library(ggspatial)      # Para agregar norte y escala
+library(raster)         # Cargar archivos raster y desargar limites politicos, elevacion y clima
+library(elevatr)        # Descargar DEM de 12.5m
+library(ggnewscale)     # Agregar una escala
+library(tidyverse)      # Para habilitar la funcion %>%
+
+```
+
+
+
+
+
+
+
+# Pasos para crear un Mapa con ggplot2
+
+1. Subir los archivos SHP, geojson o descargar archivos vectoriales
+2. Descargar archivos vectoriales y raster
+3. Crear el objeto ggplot de mapas macrolocalizacion y micro 
+4. Crear el mapa con los demas dataframa
+5. Exportacion del mapa en el formato indicado 
+
+---
+
+## Subir los archivos SHP, geojson o descargar archivos vectoriales
+
+```{r }
+# Cargar las Librerias
+library(sf)             # Cargar archivos SHP, geojson
+library(ggplot2)        # Paquete para graficar
+library(ggspatial)      # Para agregar norte y escala
+library(raster)         # Cargar archivos raster y desargar limites politicos, elevacion y clima
+library(elevatr)        # Descargar DEM de 12.5m
+library(ggnewscale)     # Agregar una escala
+library(tidyverse)      # Para habilitar la funcion %>%
+
+# Descargar del repositorio de GADM de la libreria raster el limite politico 1 (Departamento)
+Peru  <- getData('GADM',         # Repositorio
+                 country='Peru', # Escoja el pais
+                 level=1) %>%    # Division politico (0: Nacional, 1:Departamento, 2: Provincia, 3:Distrito)
+                 st_as_sf()      # Lo queremos en formato sf (SHP)
+
+
+```
+
+---
+```{r}
+#  Ejecutamos el nombre que Peru que pusimos
+Peru
+# Descargar del repositorio de GADM de la libreria raster el limite politico 1 (Departamento)
+Per  <- getData('GADM', country='Peru', 
+                level=0) %>%     # Division politico (0: Nacional)
+                st_as_sf()
+```
+
+---
+
+```{r}
+#  Filtramos el departamento de Arequipa del SHP Peru
+
+Arequipa =  subset(Peru ,                 #  Subset es el comando para filtrar
+                   NAME_1 == "Arequipa")  #  NAME_1 es el nombre de la columna donde esta el nombre de arequipa 
+Arequipa
+
+CobVeg_18061 =                              # Es el nombre que asignamos al archivo que subiremos en R 
+     st_read("SHP/Cob_Arequipa.geojson")%>% # El comando st_read nos ayuda a subir el archivo shp
+     st_as_sf()                             # Lo queremos en formato sf (SHP) 
+
+```
+
+---
+
+```{r}
+#  Filtramos el departamento de Arequipa del SHP Peru
+
+Cob  <-                                                   # Definimos un nombre
+       st_transform(CobVeg_18061 ,                        # el comando st_transform para transformar algo en shp
+          crs =                                           # la funcion crs de la proyeccion
+            st_crs("+proj=longlat +datum=WGS84 +no_defs"))# damos la proyeccion +proj=longlat +datum=WGS84 +no_defs
+Cob   # Leemos los datos transformados
+```
+
+---
+
+```{r}
+# Subimos los datos de suramerica en geojson
+
+SurAmerica = # Definimos el nombre con el que entrara
+     st_read("SHP/SurAmerica.geojson")%>%  # Subimos la capa vectorial de la carpeta SHP
+        st_as_sf() # Lo queremos en formato sf (SHP) 
+
+SurAmeric  <- st_transform(SurAmerica  ,
+                           crs = st_crs("+proj=longlat +datum=WGS84 +no_defs"))
+```
+
+
+
+
+
+
+
+
+# Crear el objeto ggplot de mapas macrolocalizacion y micro
+
+```{r }
+SurA=  # Definimos un nombre
+  ggplot()+   # es la funcion de ggplot2 para graficar 
+  geom_sf(data = SurAmeric,                  # Subimos el nombre de la capa shp 
+          fill="white",                      # Fill es la funcion para rellenar con el color que deseen
+          color="black",                     # color es la funcion para el color del borde 
+          size=0.01)+                        # Funcion size para el grosor del borde
+  geom_sf(data = Per , fill="gray", color="black")+
+  geom_sf(data = Arequipa, fill="black", color="black")+
+  theme(panel.grid.major = element_blank(),  # eliminamos la grilla mayor
+        panel.grid.minor = element_blank(),  # eliminamos la grilla menor
+        panel.margin = unit(c(0,0,0,0), "cm"), # el panel
+        plot.margin = unit(c(0,0,0,0), "cm"),  # Margen del grafico
+        axis.title = element_blank(),         # Eliminamos el titulo de los ejes en el grafico
+        axis.text = element_blank(),          # eliminamos el texto de los ejes
+        axis.ticks = element_blank(),         # eliminamos los ticks de los ejes
+        legend.position = "none",             # eliminamos la leyenda
+        panel.background = element_rect(fill = "#a2d2ff"),   # ponemos el color del fondo del plot
+        panel.border = element_rect( color = "grey20", fill = NA, size = 1))+
+  annotate(geom = "text",                     # escojemos la geometria de texto
+           x = -60,                           # escojemos la ubicacion en el eje X
+           y = 10,                            # escojemos la ubicacion en el eje Y
+           hjust = 0,                         # centramos
+           vjust = 1,                         # Ajustamos
+           label = "a) Sur America",          # Asignamos el nombre que ira
+           size = 3,                          # el tamaño de la letra
+           family="serif",                    # el tipo de familia
+           color = "black",                   # el color de la letra
+           fontface="italic",                 # cursiva
+           face = "bold")+                    # negrita
+  annotate(geom = "text", x = -80, y = -40, 
+           hjust = 0, vjust = 1, label = "Pacific ocean",
+           size = 3, family="serif", color ="blue",
+           fontface="italic",angle=90)+
+  annotate(geom = "text", x = -55, y = -50, 
+           hjust = 0, vjust = 1, label = "Atlantic ocean",
+           size = 3, family="serif", color = "blue",  
+           fontface="italic")+
+  annotate(geom = "text", x = -70, y = -10, 
+           hjust = 0, vjust = 1, label = "Peru",
+           size = 3, family="serif", color = "black",  
+           fontface="italic")
+
+```
+
+---
+
+```{r }
+SurA
+
+```
+
+---
+
+```{r }
+SurA.grob  <- ggplotGrob(SurA) # Transformamos el objeto grafico a ggplotgrob para agregar
+
+# creamos la paleta de colores
+col=c("#008000", # Inicio
+      "#582f0e", 
+      "#f72585", 
+      "#006400", 
+      "#70e000", 
+      "#656d4a", 
+      "#bc3908",
+      "#9a031e",
+      "#fcf6bd",  "#caf0f8", "#3f37c9", 
+      "#3c096c", 
+      "#588157", 
+      "#d4a373", 
+      "#2a9d8f", 
+      "#3a86ff"  # Ultimo
+)
+
+library(elevatr) # Descargar DEM de 12.5m
+elev =           # Definimos un nombre
+  get_elev_raster(Arequipa, z=10) # la funcion Z nos define la calidad y resolucion del DEM
+
+```
+
+---
+
+```{r }
+# El DEM cortado al nivel de Arequipa
+plot(elev)
+```
+
+---
+
+```{r }
+Poligo_alt    <- crop(elev, Arequipa) # la funcion crop nos ayuda a cortar el dem con shp  
+Poligo_alt   <- Poligo_alt <-         # la funcion mask nos ayuda a cortar el borde del DEM con el shp
+              mask(Poligo_alt, Arequipa)
+plot(Poligo_alt)  # vemos el plot
+```
+
+---
+
+```{r }
+slopee    = terrain(Poligo_alt  , opt = "slope") # La pendiente de un DEM es la inclinación del terreno.
+plot(slopee )
+```
+
+---
+
+```{r }
+aspecte    = terrain(Poligo_alt, opt = "aspect") # El aspecto de un DEM es la dirección de la pendiente.
+plot(aspecte)
+
+```
+
+
+---
+
+```{r }
+hille     = hillShade(slopee, aspecte, angle = 40, # es la altura máxima del terreno.
+                      direction = 270)
+plot(hille)
+```
+
+---
+
+```{r }
+# creamos la tabla de sombreado del DEM
+hill.p  = rasterToPoints(hille) # la funcion rasterToPoints transforma el raster en X,Y,Variable 
+hill.pa_ =data.frame(hill.p)    #  creamos una tabla de la misma 
+# creamso la paleta de colores
+colores = c( 
+  "#8e9aaf", # celeste
+  "#dda15e", # maroon 
+  "#faedcd") # amarillo pastel
+
+# creamos la tabla del DEM
+Geo_data       <-  rasterToPoints(Poligo_alt)
+Geo_data_frame <-  data.frame(Geo_data)
+# renombramos los nombre de la columna de la tabal creada del DEM 
+colnames(Geo_data_frame) <- c("x","y", "alt")
+Geo_data_frame
+```
+
+---
+
+```{r }
+Mapa =         # Asignamos el nombre al grafico
+  ggplot()+    # es la funcion de ggplot2 para graficar 
+  geom_sf(data = Peru, fill="white", color="black", size=0.4)+
+  geom_raster(data = hill.pa_,  # agregamos la geometria del raster en tabla
+              aes(x,  # asignamos las coordenadas del eje X de la tabla
+                  y,  # asignamos las coordenadas del eje y de la tabla
+                  fill = layer), # asignamos la variable a rellenar l ageometria
+              show.legend = F)+ # es la funcion para omitir la leyenda (T,F)
+  scale_fill_gradientn(colours=grey(1:100/100))+ # es la funcion para agregar colores plomos
+  new_scale_fill()+  # agregamos nuevo fill, en este caso el raster
+  geom_sf(data = Cob, # agregamos la cobertura de arequipa
+          aes(fill=CobVeg2013), # rellenamos con los tipos de coberturas
+          color=NA, # opitimos el borde
+          alpha=0.6)+ # trasnparencia de 0 a 1
+  scale_fill_manual(values = col, # asignamos el color al relleno 
+                    name='Cobertura Vegetal')+ # asignamos el nombre a la leyenda
+  coord_sf(xlim = c(-75.07264, -70.7), # xlim ponemoso el maximo y minmo de del eje X
+           ylim = c(-17.4 ,-14.63263)) + # ylim ponemoso el maximo y minmo de del eje Y
+  theme_classic()+ # usamos el tema de ggplot2
+  theme(legend.position = c(0.35, 0.17), # asignamos la ubicacion de la leyenda
+        axis.text.x  = element_text(face="bold", color="black", size=10,
+                                    family="serif"),
+        axis.text.y  = element_text(angle = 90,face="bold", color="black",
+                                    family="serif",size=10),
+        axis.title = element_text(face="bold", color="black"),
+        legend.background = element_rect(fill = "white"), # asignamos el color del fondo de la leyenda
+        legend.text=element_text(size=9, family="serif"),# el texto de la leyenda
+        legend.title = element_text(size=9, family="serif"), # el texto del titulo de la leyenda
+        legend.key.size = unit(0.2, "cm"), #alto de cuadrados de referencia
+        legend.key.width = unit(0.5,"cm"), #ancho de cuadrados de referencia 
+        panel.background = element_rect(fill = "#a9def9"), 
+        panel.border = element_rect( color = "grey20", # borde y relleno del plot
+                                     fill = NA, size = 0.5))+
+  labs(title = '', fill = 'Densidad \n(miles)',  x = 'Longitud', y = 'Latitud')+ # etiqueta
+  guides(fill = guide_legend(title.position = "top", # modificamos la leyenda a discreta
+                             direction = "vertical"))+
+  annotation_north_arrow(location="tl",    #  ubicacion del norte
+                         which_north="true",  
+                         style=north_arrow_fancy_orienteering ())+  # tipo de norte
+  annotation_scale(location = "br",     # ubicacion de la escala
+                   bar_cols = c("grey60", "white"),  # colores de la escala
+                   text_family = "ArcherPro Book")+  # tipo de letra
+  annotate(geom = "text", x = -72.5, y = -17, hjust = 0, vjust = 1, 
+           label = "Oeano Pacifico",size = 3, family="serif", color = 
+             "#03045e",  fontface="italic")+
+  annotate(geom = "text", x = -71, y = -17, hjust = 0, vjust = 1,face="bold",
+           label = "MOQUEGUA",size = 3, family="serif", color = 
+             "black")+
+  annotate(geom = "text", x = -70.8, y = -15.5, hjust = 0, vjust = 1,face="bold",
+           label = "PUNO",size = 3, family="serif", color = 
+             "black")+
+  annotate(geom = "text", x = -71.7, y = -14.7, hjust = 0, vjust = 1,face="bold",
+           label = "CUSCO",size = 3, family="serif", color = 
+             "black")+
+  annotate(geom = "text", x = -74, y = -15, hjust = 0, vjust = 1,face="bold",
+           label = "AYACUCHO",size = 3, family="serif", color = 
+             "black")+
+  annotate(geom = "text", x = -75, y = -15, hjust = 0, vjust = 1,face="bold",
+           label = "ICA",size = 3, family="serif", color = 
+             "black")+
+  annotation_custom(SurA.grob,     # agregamos el mapa macro al mapa general
+                    xmin = -76,    # el punto inicial en el eje x
+                    xmax = -73.5,  # el punto final en el eje X 
+                    ymin =-17.4,   # el punto inicial en el eje y
+                    ymax=-16)+     # el punto final en el eje y
+  annotate(geom = "text", x = -75, y = -17, hjust = 0, vjust = 1, angle=45,
+           label = "Gorky Florez Castillo            Gorky Florez Castillo        Gorky Florez Castillo",
+           size = 7, family="serif", color = "grey20",
+           alpha=0.2)
+```
+
+---
+
+```{r }
+Mapa
+
+```
+
+---
+
+```{r }
+ggsave(plot=Mapa , # asignamos que plot vamos a exportar
+       "Mapa/Mapa de Covertura3.png", # asigmaso la ubicacion y nombre
+       units = "cm", # asigamos la unidad 
+       width = 29, # ancho de la imagen 
+       height = 21, # alto de la imagen 
+       dpi=1200)   # calidad y resolucion 
+
+```
